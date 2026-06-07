@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HBS Study Hub</title>
+<style>
+body{font-family:system-ui,Arial;background:#060c1d;color:#eaf0ff;margin:0}
+a{color:#a7d8ff}
+header{background:#0c1633;padding:16px}
+h1{margin:0;font-size:20px}
+.container{padding:16px}
+.card{background:#0c1633;border:1px solid #1e3a6f;border-radius:12px;padding:16px;margin:12px 0}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+button,select{background:#13376d;color:#eaf0ff;border:1px solid #325a8f;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer}
+button:hover{filter:brightness(1.15)}
+#question,#flash-front,#flash-back,#match-grid{padding:16px;border-radius:12px;background:#0a1730;border:1px solid #1a3566}
+.answer-btn{display:block;width:100%;margin:8px 0;text-align:left}
+#results li{margin:8px 0}
+.correct{color:#7fff96}.wrong{color:#ff8383}.small{opacity:.8;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+<h1>HBS Study Hub</h1>
+<div class="small">Pick unit + mode → study. Wrong answers auto-save for a "Review Mistakes" run.</div>
+</header>
+<div class="container">
+<div class="row">
+<select id="unit">
+<option value="all">All Units</option>
+<option value="1">Unit 1 - Anatomy & Bones</option>
+<option value="2">Unit 2 - Nervous & Endocrine</option>
+<option value="3">Unit 3 - Cardio & Resp</option>
+<option value="4">Unit 4 - Renal & DNA</option>
+</select>
+<select id="mode">
+<option value="mc">Multiple Choice</option>
+<option value="flash">Flashcards</option>
+<option value="match">Matching</option>
+<option value="mistakes">Review Mistakes</option>
+</select>
+<button id="start">Start</button>
+</div>
+
+<div id="mc-card" class="card" style="display:none">
+<div id="question"></div>
+<div id="mc-answers"></div>
+<button id="next" style="display:none">Next</button>
+</div>
+
+<div id="flash-card" class="card" style="display:none">
+<div class="small">Tap flip</div>
+<div id="flash-front"></div>
+<div id="flash-back" style="display:none"></div>
+<div class="row">
+<button id="know">Know it</button>
+<button id="practice">Need practice</button>
+</div>
+</div>
+
+<div id="match-card" class="card" style="display:none">
+<div class="small">Match the pairs. Click a term then a definition.</div>
+<div id="match-grid"></div>
+</div>
+
+<div id="score-card" class="card" style="display:none">
+<div id="score"></div>
+<ul id="results"></ul>
+</div>
+</div>
+
+<script>
+const mc=[
+{unit:1,q:"Anatomy means studying:",choices:["Structure","Function","Experiments"],answer:0,why:"Anatomy is body structure.",trick:"A = Anatomy = Appearance"},
+{unit:1,q:"Physiology means studying:",choices:["Structure","Function","Diseases"],answer:1,why:"Physiology is how the body works.",trick:"P = Physiology = Performance"},
+{unit:1,q:"Osteoblasts:",choices:["Build bone","Break bone","Clean wounds"],answer:0,why:"Osteoblasts build new bone tissue.",trick:"BLAST = BUILD"},
+{unit:1,q:"Osteoclasts:",choices:["Build bone","Break down bone","Cause muscle contraction"],answer:1,why:"Osteoclasts break down bone.",trick:"CLAST = CRASH/DESTROY"},
+{unit:1,q:"Fracture healing step: a hard callus forms during:",choices:["Hematoma","Fibrocartilaginous callus","Bony callus"],answer:2,why:"The bony callus (hard callus) happens later as spongy bone replaces cartilage.",trick:"Hard callus = Bony"},
+{unit:2,q:"The functional unit of the nervous system is the:",choices:["Neuron","Axon","Myelin"],answer:0,why:"Neurons are the main signaling cells.",trick:"NEURON = NERVE CELL"},
+{unit:2,q:"A synapse is:",choices:["A nerve cell","A gap between neurons","A muscle"],answer:1,why:"Synapse is the space where signals transfer.",trick:"Synapse = Space"},
+{unit:2,q:"Insulin lowers blood sugar by:",choices:["Destroying sugar","Helping cells take up glucose","Stopping digestion"],answer:1,why:"Insulin promotes glucose uptake into cells.",trick:"Insulin = In cells"},
+{unit:2,q:"The pituitary gland is often called the:",choices:["Master gland","Adrenal","Thyroid"],answer:0,why:"It releases hormones that control many other glands.",trick:"Pit = Pilot"},
+{unit:3,q:"Blood pressure is highest in the:",choices:["Capillaries","Veins","Arteries"],answer:2,why:"Arteries carry blood away under high pressure.",trick:"A = Away = Arteries"},
+{unit:3,q:"Gas exchange happens in the:",choices:["Trachea","Bronchioles","Alveoli"],answer:2,why:"Alveoli are the tiny sacs where O2/CO2 exchange happens.",trick:"Alveoli = Air sacs"},
+{unit:3,q:"Which structure keeps food out of the trachea?:",choices:["Epiglottis","Diaphragm","Larynx"],answer:0,why:"The epiglottis folds to block the trachea when swallowing.",trick:"Epi-glottis = lid"},
+{unit:4,q:"The first step of urine formation is:",choices:["Reabsorption","Secretion","Filtration"],answer:2,why:"Blood is filtered at the glomerulus.",trick:"F-R-S steps"},
+{unit:4,q:"The functional unit of the kidney is the:",choices:["Nephron","Neuron","Alveolus"],answer:0,why:"Nephron is the basic filtering unit.",trick:"Nephron = Filter"},
+{unit:4,q:"DNA moves toward what electrode during gel electrophoresis?:",choices:["Positive","Negative","Neutral"],answer:0,why:"DNA is negatively charged and moves toward the positive electrode.",trick:"Negative DNA → Positive pole"},
+{unit:4,q:"Smaller DNA fragments move:",choices:["Farther","Backward","The same distance"],answer:0,why:"Smaller fragments move through the gel faster and travel farther.",trick:"Small = Sprint"}
+];
+
+const pairs=[
+{unit:1,left:"Osteoblast",right:"Builds bone"},{unit:1,left:"Osteoclast",right:"Breaks down bone"},{unit:1,left:"Ligament",right:"Connects bone to bone"},{unit:1,left:"Tendon",right:"Connects muscle to bone"},
+{unit:2,left:"Neuron",right:"Functional unit of nervous system"},{unit:2,left:"Synapse",right:"Gap between neurons"},{unit:2,left:"Insulin",right:"Lowers blood sugar"},
+{unit:3,left:"Artery",right:"Carries blood away"},{unit:3,left:"Vein",right:"Carries blood toward heart"},{unit:3,left:"Alveoli",right:"Gas exchange"},
+{unit:4,left:"Nephron",right:"Functional unit of kidney"},{unit:4,left:"Filtration",right:"First step of urine formation"},{unit:4,left:"DNA",right:"Negatively charged"}
+];
+
+let unit='all',mode='mc';
+let quiz=[],pos=0,results=[],currentAnswers=[];
+let mistakes=JSON.parse(localStorage.getItem('hbs_mistakes')||'[]');
+function uniq(arr){return [...new Set(arr)];}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function resetViews(){['mc-card','flash-card','match-card','score-card'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('next').style.display='none';}
+function showScore(){resetViews();document.getElementById('score-card').style.display='block';const wrong=results.filter(r=>r.correct===false).length;document.getElementById('score').innerHTML=`<b>Score:</b> ${results.length-wrong}/${results.length}`;
+const ul=document.getElementById('results');ul.innerHTML='';results.forEach(r=>{const li=document.createElement('li');li.className=r.correct?'correct':'wrong';li.innerHTML=`${r.q}<br/><span class="small">Your answer: ${r.your}<br/>Correct: ${r.correctAns}<br/>${r.why}<br/><b>Trick:</b> ${r.trick}</span>`;ul.appendChild(li);});
+localStorage.setItem('hbs_mistakes',JSON.stringify(uniq(mistakes)));
+}
+
+function loadMC(){const item=quiz[pos];resetViews();document.getElementById('mc-card').style.display='block';document.getElementById('question').textContent=`Q${pos+1}: ${item.q}`;const holder=document.getElementById('mc-answers');holder.innerHTML='';currentAnswers=item.choices.map((choice,i)=>{
+const btn=document.createElement('button');btn.textContent=choice;btn.className='answer-btn';btn.onclick=()=>{
+const correct=i===item.answer;results.push({q:item.q,your:choice,correct,correctAns:item.choices[item.answer],why:item.why,trick:item.trick});
+if(!correct) mistakes.push(item.unit+':'+item.q);
+Array.from(holder.children).forEach(b=>b.disabled=true);
+if(correct){btn.style.borderColor='#7fff96';}else{btn.style.borderColor='#ff8383';}
+document.getElementById('next').style.display='block';
+};
+holder.appendChild(btn);return btn;});
+}
+
+function loadFlash(){resetViews();document.getElementById('flash-card').style.display='block';const item=quiz[pos];document.getElementById('flash-front').textContent=`${item.q}`;document.getElementById('flash-back').innerHTML=`<b>Answer:</b> ${item.choices[item.answer]}<br/>${item.why}<br/><b>Trick:</b> ${item.trick}`;
+flip(false);
+}
+
+function flip(showBack){document.getElementById('flash-front').style.display=showBack?'none':'block';document.getElementById('flash-back').style.display=showBack?'block':'none';}
+
+document.getElementById('flash-front').onclick=()=>flip(true);
+document.getElementById('flash-back').onclick=()=>flip(false);
+document.getElementById('know').onclick=()=>{pos++;pos>=quiz.length?showScore():loadFlash();};
+document.getElementById('practice').onclick=()=>{mistakes.push(quiz[pos].unit+':'+quiz[pos].q);pos++;pos>=quiz.length?showScore():loadFlash();};
+
+document.getElementById('next').onclick=()=>{pos++;pos>=quiz.length?showScore():loadMC();};
+
+document.getElementById('start').onclick=()=>{
+unit=document.getElementById('unit').value;mode=document.getElementById('mode').value;results=[];pos=0;
+let source=mc;
+if(mode==='mistakes'){
+const ids=JSON.parse(localStorage.getItem('hbs_mistakes')||'[]');
+source=mc.filter(x=>ids.includes(x.unit+':'+x.q));
+if(unit!=='all') source=source.filter(x=>String(x.unit)===unit);
+}else{
+if(unit!=='all') source=source.filter(x=>String(x.unit)===unit);
+}
+if(source.length===0){alert('No questions for that selection yet.');return;}
+if(mode==='mc'){quiz=shuffle(source.slice());quiz=quiz.slice(0,Math.min(12,quiz.length));loadMC();}
+if(mode==='flash'){quiz=shuffle(source.slice());quiz=quiz.slice(0,Math.min(16,quiz.length));loadFlash();}
+if(mode==='match'){startMatch();}
+if(mode==='mistakes'){quiz=shuffle(source.slice());loadMC();}
+};
+
+function startMatch(){resetViews();document.getElementById('match-card').style.display='block';let pool=pairs.slice();if(unit!=='all') pool=pool.filter(x=>String(x.unit)===unit);pool=shuffle(pool).slice(0,6);
+let tiles=[];
+pool.forEach((p,idx)=>tiles.push({kind:'L',text:p.left,idx},{kind:'R',text:p.right,idx}));tiles=shuffle(tiles);
+const grid=document.getElementById('match-grid');grid.innerHTML='';
+let first=null,matched=0;
+tiles.forEach(t=>{
+const btn=document.createElement('button');btn.textContent=t.text;btn.style.margin='6px';btn.onclick=()=>{
+if(btn.disabled) return;
+if(!first){first={btn,t};btn.style.borderColor='#a7d8ff';return;}
+// second
+btn.style.borderColor='#a7d8ff';
+const good=(first.t.idx===t.idx)&&first.t.kind!==t.kind;
+setTimeout(()=>{
+if(good){btn.disabled=true;first.btn.disabled=true;btn.style.borderColor='#7fff96';first.btn.style.borderColor='#7fff96';matched++;}
+else{btn.style.borderColor='#325a8f';first.btn.style.borderColor='#325a8f';}
+first=null;
+if(matched===pool.length) document.getElementById('score-card').style.display='block',document.getElementById('score').textContent='Matching complete!';
+},200);
+};
+grid.appendChild(btn);
+});
+}
+</script>
+</body>
+</html>
